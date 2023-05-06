@@ -39,7 +39,7 @@ class updateVpcPeering:
 
         Returns:
             update (object): Peering Object with updated attribute (export_custom_routes=True)
-        
+
         Raises:
         """
         peerings = self.network.peerings
@@ -60,37 +60,51 @@ class updateVpcPeering:
 
         Returns:
             status (dict): Status object containing bool and msg
-        
+
         Raises:
         """
-        try:
-            request = compute_v1.NetworksUpdatePeeringRequest(network_peering=update)
-            response = self.client.update_peering(
-                project=self.project_id,
-                network=self.network_name,
-                networks_update_peering_request_resource=request,
-            )
-            success = self.check_status(response=response)
-            if success:
+        max_retries = 5
+        wait = 5
+        # Retry Algorithm
+        # retry_count * default_wait until retry_count > 5
+        # First retry, wait 5 seconds
+        # Second retry, wait 10 seconds
+        # Third retry, wait 15 seconds
+        # Forth retry, wait 20 seconds
+        # Fifth retry, wait 25 seconds
+        for cnt in range(max_retries):
+            try:
+                request = compute_v1.NetworksUpdatePeeringRequest(
+                    network_peering=update
+                )
+                response = self.client.update_peering(
+                    project=self.project_id,
+                    network=self.network_name,
+                    networks_update_peering_request_resource=request,
+                )
+                success = self.check_status(response=response)
+                if success:
+                    status = {
+                        "status": success,
+                        "msg": f"Successfully updated peering {self.peering_name}...",
+                    }
+                    break
+                else:
+                    status = {
+                        "status": success,
+                        "msg": f"Failed to update peering {self.peering_name}, Peering success = False...",
+                    }
+            except Exception as e:
                 status = {
-                    "status": success,
-                    "msg": f"Successfully updated peering {self.peering_name}...",
+                    "status": False,
+                    "msg": f"Failed to update peering {self.peering_name}, exception {e} occured...",
                 }
-            else:
-                status = {
-                    "status": success,
-                    "msg": f"Failed to update peering {self.peering_name}...",
-                }
-        except Exception:
-            status = {
-                "status": False,
-                "msg": f"Failed to update peering {self.peering_name}...",
-            }
+            time.sleep(wait*cnt)
         return status
 
     def check_status(self, response: object) -> bool:
         """Checks the status of the response object from peering_update operation (async)
-        
+
         Will execute done method within the class until True is returned or max_retries is exceeded
 
         Args:
@@ -99,11 +113,12 @@ class updateVpcPeering:
 
         Returns:
             status (bool): Bool indicating the operation finished
-        
+
         Raises:
         """
         max_retries = 5
         wait = 5
+        # Checks status every 5 seconds 5 times
         status = False
         for cnt in range(max_retries):
             status = response.done()
@@ -120,7 +135,7 @@ class updateVpcPeering:
 
         Returns:
             status (dict): Status object containing bool and msg
-        
+
         Raises:
         """
         self.return_network()
@@ -145,7 +160,7 @@ def update_peering(network_name: str, peering_name: str, project_id: str) -> dic
 
     Returns:
         status (dict): Status object containing bool and msg
-    
+
     Raises:
     """
     status = updateVpcPeering(
