@@ -1,0 +1,7 @@
+network_name = "examplevpc1"
+project_id = "myprojectid012931313"
+# vpc_connector is optional, use if you want the function to run privately within a VPC
+# https://cloud.google.com/vpc/docs/configure-serverless-vpc-access
+vpc_connector = "projects/myprojectid012931313/locations/us-east4/connectors/cloud-functions-connector"
+bucket_location = "us-east4"
+region = "us-east4"

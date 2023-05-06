@@ -1,7 +1,6 @@
 
 locals {
   sink_filters = [
-    "resource.type = \"gcp_network\"",
     "protoPayload.methodName = \"v1.compute.networks.addPeering\"",
     "protoPayload.request.networkPeering.name: (\"gke-\" AND \"-peer\")",
     "protoPayload.resourceName: (\"${var.project_id}\" AND \"${var.network_name}\")"
@@ -11,16 +10,35 @@ locals {
   labels = merge(var.labels, local.default_labels)
 }
 
+resource "google_project_service" "eventarc_api" {
+  project = var.project_id
+  service = "eventarc.googleapis.com"
+
+  timeouts {
+    create = "30m"
+    update = "40m"
+  }
+
+  disable_on_destroy = false
+}
+
 resource "google_pubsub_topic" "pubsub" {
   name   = "vpc-peering-gke-${var.network_name}-pubsub"
   labels = var.labels
 }
 
 resource "google_logging_project_sink" "vpc_peering_sink" {
-  name        = "vpc-peering-gke-${var.network_name}-sink"
-  description = "Filters addPeering events for a specific network"
-  destination = google_pubsub_topic.pubsub.id
-  filter      = local.sink_filter
+  name                   = "vpc-peering-gke-${var.network_name}-sink"
+  description            = "Filters addPeering events for a specific network"
+  destination            = "pubsub.googleapis.com/${google_pubsub_topic.pubsub.id}"
+  filter                 = local.sink_filter
+  unique_writer_identity = true
+}
+
+resource "google_project_iam_member" "vpc_peering_sink_pubsub" {
+  project = var.project_id
+  role    = "roles/pubsub.publisher"
+  member  = google_logging_project_sink.vpc_peering_sink.writer_identity
 }
 
 data "archive_file" "source" {
@@ -36,7 +54,7 @@ resource "google_storage_bucket" "cf-bucket" {
 }
 
 resource "google_storage_bucket_object" "cf-object" {
-  name       = "function-source.zip"
+  name       = "${data.archive_file.source.id}.zip"
   bucket     = google_storage_bucket.cf-bucket.name
   source     = "function-source.zip"
   depends_on = [data.archive_file.source]
@@ -50,7 +68,7 @@ resource "google_service_account" "cf-service-account" {
 resource "google_project_iam_member" "cf-service-account-iam" {
   project = var.project_id
   role    = "roles/compute.networkAdmin"
-  member  = google_service_account.cf-service-account.email
+  member  = "serviceAccount:${google_service_account.cf-service-account.email}"
 }
 
 resource "google_cloudfunctions2_function" "function" {
@@ -72,6 +90,13 @@ resource "google_cloudfunctions2_function" "function" {
   service_config {
     vpc_connector = var.vpc_connector != "" ? var.vpc_connector : null
     vpc_connector_egress_settings = var.vpc_connector != "" ? "ALL_TRAFFIC" : null
+    environment_variables = {
+      NETWORK_NAME = var.network_name,
+      PROJECT_ID = var.project_id
+    }
+    available_memory   = "256M"
+    max_instance_count = 5
+    timeout_seconds    = 300
   }
 
   event_trigger {
@@ -80,4 +105,8 @@ resource "google_cloudfunctions2_function" "function" {
     pubsub_topic   = google_pubsub_topic.pubsub.id
     retry_policy   = "RETRY_POLICY_RETRY"
   }
+
+  depends_on = [
+    google_project_service.eventarc_api
+  ]
 }
