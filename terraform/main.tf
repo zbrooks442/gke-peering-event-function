@@ -8,11 +8,14 @@ locals {
   sink_filter = join(" AND ", local.sink_filters)
   default_labels = {"network_name" = var.network_name, "purpose" = "gke_peering_events"}
   labels = merge(var.labels, local.default_labels)
+  name_rand_string = substr(sha256(var.network_name), 0, 8)
+  required_apis  = ["artifactregistry.googleapis.com", "eventarc.googleapis.com", "run.googleapis.com"]
 }
 
-resource "google_project_service" "eventarc_api" {
-  project = var.project_id
-  service = "eventarc.googleapis.com"
+resource "google_project_service" "required_apis" {
+  project  = var.project_id
+  for_each = toset(local.required_apis)
+  service  = each.key
 
   timeouts {
     create = "30m"
@@ -23,13 +26,13 @@ resource "google_project_service" "eventarc_api" {
 }
 
 resource "google_pubsub_topic" "pubsub" {
-  name   = "vpc-peering-gke-${var.network_name}-pubsub"
+  name   = "vpc-peering-gke-${local.name_rand_string}-pubsub"
   labels = var.labels
 }
 
 resource "google_logging_project_sink" "vpc_peering_sink" {
-  name                   = "vpc-peering-gke-${var.network_name}-sink"
-  description            = "Filters addPeering events for a specific network"
+  name                   = "vpc-peering-gke-${local.name_rand_string}-sink"
+  description            = "Filters addPeering events for network ${var.network_name}"
   destination            = "pubsub.googleapis.com/${google_pubsub_topic.pubsub.id}"
   filter                 = local.sink_filter
   unique_writer_identity = true
@@ -48,7 +51,7 @@ data "archive_file" "source" {
 }
 
 resource "google_storage_bucket" "cf-bucket" {
-  name                        = "${var.network_name}-vpc-peering-cf"
+  name                        = "gkepeer-updater-${local.name_rand_string}"
   location                    = var.bucket_location
   uniform_bucket_level_access = true
 }
@@ -61,13 +64,25 @@ resource "google_storage_bucket_object" "cf-object" {
 }
 
 resource "google_service_account" "cf-service-account" {
-  account_id   = "${var.network_name}-vpc-peering-cf-sa"
-  display_name = "Service Account used by CloudFunction to update gke VPC peerings with export_custom_routes"
+  account_id   = "gkepeer-updater-${local.name_rand_string}"
+  display_name = "gkepeer-updater-${local.name_rand_string}"
 }
 
-resource "google_project_iam_member" "cf-service-account-iam" {
+resource "google_project_iam_member" "cf-service-account-iam-cr-invoker" {
+  project = var.project_id
+  role    = "roles/run.invoker"
+  member  = "serviceAccount:${google_service_account.cf-service-account.email}"
+}
+
+resource "google_project_iam_member" "cf-service-account-iam-networkadmin" {
   project = var.project_id
   role    = "roles/compute.networkAdmin"
+  member  = "serviceAccount:${google_service_account.cf-service-account.email}"
+}
+
+resource "google_project_iam_member" "cf-service-account-iam-pubusb" {
+  project = var.project_id
+  role    = "roles/pubsub.subscriber"
   member  = "serviceAccount:${google_service_account.cf-service-account.email}"
 }
 
@@ -94,19 +109,21 @@ resource "google_cloudfunctions2_function" "function" {
       NETWORK_NAME = var.network_name,
       PROJECT_ID = var.project_id
     }
-    available_memory   = "256M"
-    max_instance_count = 5
-    timeout_seconds    = 300
+    available_memory      = "256M"
+    max_instance_count    = 5
+    timeout_seconds       = 300
+    service_account_email = google_service_account.cf-service-account.email
   }
 
   event_trigger {
-    trigger_region = var.region
-    event_type     = "google.cloud.pubsub.topic.v1.messagePublished"
-    pubsub_topic   = google_pubsub_topic.pubsub.id
-    retry_policy   = "RETRY_POLICY_RETRY"
+    trigger_region        = var.region
+    event_type            = "google.cloud.pubsub.topic.v1.messagePublished"
+    pubsub_topic          = google_pubsub_topic.pubsub.id
+    retry_policy          = "RETRY_POLICY_RETRY"
+    service_account_email = google_service_account.cf-service-account.email
   }
 
   depends_on = [
-    google_project_service.eventarc_api
+    google_project_service.required_apis
   ]
 }
