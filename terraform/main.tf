@@ -5,9 +5,9 @@ locals {
     "protoPayload.request.networkPeering.name: (\"gke-\" AND \"-peer\")",
     "protoPayload.resourceName: (\"${var.project_id}\" AND \"${var.network_name}\")"
   ]
-  sink_filter = join(" AND ", local.sink_filters)
-  default_labels = {"network_name" = var.network_name, "purpose" = "gke_peering_events"}
-  labels = merge(var.labels, local.default_labels)
+  sink_filter    = join(" AND ", local.sink_filters)
+  default_labels = { "network_name" = var.network_name, "purpose" = "gke_peering_events" }
+  labels         = merge(var.labels, local.default_labels)
   required_apis  = ["artifactregistry.googleapis.com", "eventarc.googleapis.com", "run.googleapis.com"]
 }
 
@@ -92,13 +92,13 @@ resource "google_project_iam_member" "cf-service-account-iam-pubusb" {
 }
 
 resource "google_cloudfunctions2_function" "function" {
-  name = "gkepeer-updater-${random_string.random.result}-func"
-  location = var.region
+  name        = "gkepeer-updater-${random_string.random.result}-func"
+  location    = var.region
   description = "Function to update GKE peerings for network ${var.network_name}"
 
   build_config {
-    runtime = "python311"
-    entry_point = "update_peering"  # Set the entry point 
+    runtime     = "python311"
+    entry_point = "update_peering" # Set the entry point 
     source {
       storage_source {
         bucket = google_storage_bucket.cf-bucket.name
@@ -108,11 +108,11 @@ resource "google_cloudfunctions2_function" "function" {
   }
 
   service_config {
-    vpc_connector = var.vpc_connector != "" ? var.vpc_connector : null
+    vpc_connector                 = var.vpc_connector != "" ? var.vpc_connector : null
     vpc_connector_egress_settings = var.vpc_connector != "" ? "ALL_TRAFFIC" : null
     environment_variables = {
       NETWORK_NAME = var.network_name,
-      PROJECT_ID = var.project_id
+      PROJECT_ID   = var.project_id
     }
     available_memory      = "256M"
     max_instance_count    = 5
