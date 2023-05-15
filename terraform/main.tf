@@ -8,8 +8,13 @@ locals {
   sink_filter = join(" AND ", local.sink_filters)
   default_labels = {"network_name" = var.network_name, "purpose" = "gke_peering_events"}
   labels = merge(var.labels, local.default_labels)
-  name_rand_string = substr(sha256(var.network_name), 0, 8)
   required_apis  = ["artifactregistry.googleapis.com", "eventarc.googleapis.com", "run.googleapis.com"]
+}
+
+resource "random_string" "random" {
+  length  = 8
+  upper   = false
+  special = false
 }
 
 resource "google_project_service" "required_apis" {
@@ -26,12 +31,12 @@ resource "google_project_service" "required_apis" {
 }
 
 resource "google_pubsub_topic" "pubsub" {
-  name   = "vpc-peering-gke-${local.name_rand_string}-pubsub"
+  name   = "gkepeer-updater-${random_string.random.result}-pubsub"
   labels = var.labels
 }
 
 resource "google_logging_project_sink" "vpc_peering_sink" {
-  name                   = "vpc-peering-gke-${local.name_rand_string}-sink"
+  name                   = "gkepeer-updater-${random_string.random.result}-sink"
   description            = "Filters addPeering events for network ${var.network_name}"
   destination            = "pubsub.googleapis.com/${google_pubsub_topic.pubsub.id}"
   filter                 = local.sink_filter
@@ -51,7 +56,7 @@ data "archive_file" "source" {
 }
 
 resource "google_storage_bucket" "cf-bucket" {
-  name                        = "gkepeer-updater-${local.name_rand_string}"
+  name                        = "gkepeer-updater-${random_string.random.result}-bucket"
   location                    = var.bucket_location
   uniform_bucket_level_access = true
 }
@@ -64,8 +69,8 @@ resource "google_storage_bucket_object" "cf-object" {
 }
 
 resource "google_service_account" "cf-service-account" {
-  account_id   = "gkepeer-updater-${local.name_rand_string}"
-  display_name = "gkepeer-updater-${local.name_rand_string}"
+  account_id   = "gkepeer-updater-${random_string.random.result}"
+  display_name = "gkepeer-updater-${random_string.random.result}"
 }
 
 resource "google_project_iam_member" "cf-service-account-iam-cr-invoker" {
@@ -87,9 +92,9 @@ resource "google_project_iam_member" "cf-service-account-iam-pubusb" {
 }
 
 resource "google_cloudfunctions2_function" "function" {
-  name = "${var.network_name}-vpc-peering-cf"
+  name = "gkepeer-updater-${random_string.random.result}-func"
   location = var.region
-  description = "Function to update GKE peerings for network ${var.network_name} with custom route export"
+  description = "Function to update GKE peerings for network ${var.network_name}"
 
   build_config {
     runtime = "python311"
