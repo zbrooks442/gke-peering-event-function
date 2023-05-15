@@ -21,6 +21,10 @@ The end result of this solution is that when a VPC peering is added, a cloudfunc
 
 This solution is implemented with Terraform. You can use the code in the ./terraform directory to deploy this solution. The identity that runs terraform needs the required permissions to build out the resources in question. Refer to the readme within the terraform folder for the resources created.
 
+### Terraform Tests
+
+This can easily be converted to a module. Normally I'd build this into a terraform module and write tests using the [terratest framework](https://terratest.gruntwork.io/). I did not do this since this is just a demonstration. I'm currently testing the terraform by running an apply in a dev environment and a destroy when I'm done. This is essentially what terratest will do except you'd typically compare output values with expected results.
+
 ### Setup
 
 1. Setup your backend.tf if you want your state stored remotely (TFC/TFE, GCS, S3, Etc) or not if you want state to be stored locally
@@ -32,7 +36,7 @@ This solution is implemented with Terraform. You can use the code in the ./terra
 
 After you've followed the setup steps, you can deploy using `terraform apply`.
 
-### Testing
+### Manual Tests
 
 You can test the solution two ways. I tested using the second procedure since it's easier and I didn't need to build a GKE cluster which can take some time to build.
 
@@ -126,7 +130,7 @@ main.py will contain your entrypoint function and this is also specified when yo
 
 ### Tests
 
-I've added some unit tests as an example in the tests directory. Not all of these tests are great since it is difficult to mock some of the objects returned from the queries used by the Google compute SDK. Run the following steps to run the unit tests.
+I've added some unit tests as an example in the tests directory. Not all of these tests are great since it is difficult to mock some of the objects returned from the queries used by the Google compute SDK. Run the following steps to execute the unit tests.
 
 1. Install the module contained within src/modules (from root of repo) `pip install -e .`
 2. Run unit tests from within tests folder `python -m unittest test_update_vpc_peering.py`
@@ -134,3 +138,7 @@ I've added some unit tests as an example in the tests directory. Not all of thes
 ### Functionality
 
 The python code takes in the base64 log message from the pub/sub topic. It base64 decodes the message and extracts the required log fields. It then extracts the existing peering and constructs a new peering object with custom route export enabled. Then it executes the update peering operation to ensure custom route export is enabled.
+
+### Logging/Monitoring
+
+I've implemented some basic logging functionality. I log json based messages to standard out when issues occur. This could be greatly improved by using a standard logging framework/library that is meant for usage with GCP cloudfunctions. The logging that is implemented will at least tell you if it successfully updated a peering or if it failed in the cloudfunction logs. You may want to generate an alert if the GKE peering doesn't update successfully since GKE clusters using the peering will not be reachable.
