@@ -132,8 +132,82 @@ main.py will contain your entrypoint function and this is also specified when yo
 
 I've added some unit tests as an example in the tests directory. Not all of these tests are great since it is difficult to mock some of the objects returned from the queries used by the Google compute SDK. Run the following steps to execute the unit tests.
 
-1. Install the module contained within src/modules (from root of repo) `pip install -e .`
-2. Run unit tests from within tests folder `python -m unittest test_update_vpc_peering.py`
+1. Install tox following [official documentation](https://tox.wiki/en/4.5.1/installation.html).
+2. Setup gcloud default authentication, will not make any real API calls `gcloud auth application-default login`.
+3. Run tox which will setup virtual environments, lint, and run pytest. Just run `tox` from root directory of repo.
+
+```
+~> gke-peering-event-function % tox
+lint: install_deps> python -I -m pip install 'black>=23' -e . -r ./src/requirements.txt
+.pkg: install_requires> python -I -m pip install setuptools
+.pkg: _optional_hooks> python /Users/zachbrooks/.local/pipx/venvs/tox/lib/python3.11/site-packages/pyproject_api/_backend.py True setuptools.build_meta
+.pkg: get_requires_for_build_sdist> python /Users/zachbrooks/.local/pipx/venvs/tox/lib/python3.11/site-packages/pyproject_api/_backend.py True setuptools.build_meta
+.pkg: prepare_metadata_for_build_wheel> python /Users/zachbrooks/.local/pipx/venvs/tox/lib/python3.11/site-packages/pyproject_api/_backend.py True setuptools.build_meta
+.pkg: build_sdist> python /Users/zachbrooks/.local/pipx/venvs/tox/lib/python3.11/site-packages/pyproject_api/_backend.py True setuptools.build_meta
+lint: install_package_deps> python -I -m pip install google-cloud-compute==1.11.0
+lint: install_package> python -I -m pip install --force-reinstall --no-deps /Users/zachbrooks/github.com/zbrooks422/gke-peering-event-function/.tox/.tmp/package/1/update_vpc_peering-0.0.1.tar.gz
+lint: commands[0]> black .
+All done! ✨ 🍰 ✨
+4 files left unchanged.
+lint: OK ✔ in 11.25 seconds
+py311: install_deps> python -I -m pip install 'pytest>=7' -e . -r ./src/requirements.txt
+py311: install_package_deps> python -I -m pip install google-cloud-compute==1.11.0
+py311: install_package> python -I -m pip install --force-reinstall --no-deps /Users/zachbrooks/github.com/zbrooks422/gke-peering-event-function/.tox/.tmp/package/2/update_vpc_peering-0.0.1.tar.gz
+py311: commands[0]> pytest tests
+============================= test session starts ==============================
+platform darwin -- Python 3.11.3, pytest-7.3.1, pluggy-1.0.0
+cachedir: .tox/py311/.pytest_cache
+rootdir: /Users/zachbrooks/github.com/zbrooks422/gke-peering-event-function
+collected 5 items                                                              
+
+tests/test_update_vpc_peering.py .....                                   [100%]
+
+=============================== warnings summary ===============================
+.tox/py311/lib/python3.11/site-packages/pkg_resources/__init__.py:121
+  /Users/zachbrooks/github.com/zbrooks422/gke-peering-event-function/.tox/py311/lib/python3.11/site-packages/pkg_resources/__init__.py:121: DeprecationWarning: pkg_resources is deprecated as an API
+    warnings.warn("pkg_resources is deprecated as an API", DeprecationWarning)
+
+.tox/py311/lib/python3.11/site-packages/pkg_resources/__init__.py:2870
+.tox/py311/lib/python3.11/site-packages/pkg_resources/__init__.py:2870
+.tox/py311/lib/python3.11/site-packages/pkg_resources/__init__.py:2870
+.tox/py311/lib/python3.11/site-packages/pkg_resources/__init__.py:2870
+  /Users/zachbrooks/github.com/zbrooks422/gke-peering-event-function/.tox/py311/lib/python3.11/site-packages/pkg_resources/__init__.py:2870: DeprecationWarning: Deprecated call to `pkg_resources.declare_namespace('google')`.
+  Implementing implicit namespace packages (as specified in PEP 420) is preferred to `pkg_resources.declare_namespace`. See https://setuptools.pypa.io/en/latest/references/keywords.html#keyword-namespace-packages
+    declare_namespace(pkg)
+
+.tox/py311/lib/python3.11/site-packages/pkg_resources/__init__.py:2870
+  /Users/zachbrooks/github.com/zbrooks422/gke-peering-event-function/.tox/py311/lib/python3.11/site-packages/pkg_resources/__init__.py:2870: DeprecationWarning: Deprecated call to `pkg_resources.declare_namespace('google.cloud')`.
+  Implementing implicit namespace packages (as specified in PEP 420) is preferred to `pkg_resources.declare_namespace`. See https://setuptools.pypa.io/en/latest/references/keywords.html#keyword-namespace-packages
+    declare_namespace(pkg)
+
+.tox/py311/lib/python3.11/site-packages/pkg_resources/__init__.py:2349
+.tox/py311/lib/python3.11/site-packages/pkg_resources/__init__.py:2349
+.tox/py311/lib/python3.11/site-packages/pkg_resources/__init__.py:2349
+  /Users/zachbrooks/github.com/zbrooks422/gke-peering-event-function/.tox/py311/lib/python3.11/site-packages/pkg_resources/__init__.py:2349: DeprecationWarning: Deprecated call to `pkg_resources.declare_namespace('google')`.
+  Implementing implicit namespace packages (as specified in PEP 420) is preferred to `pkg_resources.declare_namespace`. See https://setuptools.pypa.io/en/latest/references/keywords.html#keyword-namespace-packages
+    declare_namespace(parent)
+
+.tox/py311/lib/python3.11/site-packages/pkg_resources/__init__.py:2870
+  /Users/zachbrooks/github.com/zbrooks422/gke-peering-event-function/.tox/py311/lib/python3.11/site-packages/pkg_resources/__init__.py:2870: DeprecationWarning: Deprecated call to `pkg_resources.declare_namespace('google.logging')`.
+  Implementing implicit namespace packages (as specified in PEP 420) is preferred to `pkg_resources.declare_namespace`. See https://setuptools.pypa.io/en/latest/references/keywords.html#keyword-namespace-packages
+    declare_namespace(pkg)
+
+.tox/py311/lib/python3.11/site-packages/google/rpc/__init__.py:20
+  /Users/zachbrooks/github.com/zbrooks422/gke-peering-event-function/.tox/py311/lib/python3.11/site-packages/google/rpc/__init__.py:20: DeprecationWarning: Deprecated call to `pkg_resources.declare_namespace('google.rpc')`.
+  Implementing implicit namespace packages (as specified in PEP 420) is preferred to `pkg_resources.declare_namespace`. See https://setuptools.pypa.io/en/latest/references/keywords.html#keyword-namespace-packages
+    pkg_resources.declare_namespace(__name__)
+
+tests/test_update_vpc_peering.py::test_return_network
+  /Users/zachbrooks/github.com/zbrooks422/gke-peering-event-function/.tox/py311/lib/python3.11/site-packages/google/auth/_default.py:78: UserWarning: Your application has authenticated using end user credentials from Google Cloud SDK without a quota project. You might receive a "quota exceeded" or "API not enabled" error. See the following page for troubleshooting: https://cloud.google.com/docs/authentication/adc-troubleshooting/user-creds. 
+    warnings.warn(_CLOUD_SDK_CREDENTIALS_WARNING)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== 5 passed, 12 warnings in 1.38s ========================
+.pkg: _exit> python /Users/zachbrooks/.local/pipx/venvs/tox/lib/python3.11/site-packages/pyproject_api/_backend.py True setuptools.build_meta
+  lint: OK (11.25=setup[8.90]+cmd[2.34] seconds)
+  py311: OK (9.59=setup[7.84]+cmd[1.75] seconds)
+  congratulations :) (20.87 seconds)
+```
 
 ### Functionality
 
