@@ -99,7 +99,7 @@ class updateVpcPeering:
                     "status": False,
                     "msg": f"Failed to update peering {self.peering_name}, exception {e} occured...",
                 }
-            time.sleep(wait*cnt)
+            time.sleep(wait * cnt)
         return status
 
     def check_status(self, response: object) -> bool:

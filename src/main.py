@@ -1,4 +1,4 @@
-from modules.update_vpc_peering import update_vpc_peering
+from packages.update_vpc_peering import update_vpc_peering
 import base64
 import json
 import os
@@ -13,7 +13,7 @@ def update_peering(data: dict, context: dict) -> dict:
 
     Returns:
         status (dict): Dictionary containing bool status and msg
-    
+
     Raises:
     """
     data_buffer = base64.b64decode(data["data"])
